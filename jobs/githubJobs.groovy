@@ -1,3 +1,4 @@
+import com.dslexample.GradleCiJobBuilder
 import groovy.json.JsonSlurper
 
 String basePath = 'github'
@@ -7,9 +8,8 @@ folder(basePath) {
 }
 
 println "Creating Jobs for https://api.github.com/users/iromu/repos"
-def OAUTHTOKEN = ""
-//def githubApi = new URL("https://api.github.com/users/iromu/repos?access_token=$OAUTHTOKEN")
-def githubApi = new URL("https://api.github.com/users/iromu/repos")
+def OAUTHTOKEN = "e27dc6dc711ac0bea3726ea78044c8795f935d08"
+def githubApi = new URL("https://api.github.com/users/iromu/repos?access_token=$OAUTHTOKEN")
 def projects = new JsonSlurper().parse(githubApi.newReader())
 
 projects.each { project ->
@@ -27,25 +27,76 @@ projects.each { project ->
 
         folder "$basePath/$jobName"
 
-        //URL branchUrl = "https://api.github.com/repos/$githubName/branches?access_token=$OAUTHTOKEN".toURL()
-        URL branchUrl = "https://api.github.com/repos/$githubName/branches".toURL()
+        URL branchUrl = "https://api.github.com/repos/$githubName/branches?access_token=$OAUTHTOKEN".toURL()
         List branches = new JsonSlurper().parse(branchUrl.newReader())
 
         branches.each { branch ->
 
-            if (gitLanguage == 'Java') {
-                String safeBranchName = branch.name.replaceAll('/', '-')
-                folder "$basePath/$jobName/$safeBranchName"
-                println "Creating Jobs $basePath/$safeBranchName/build for ${gitUrl}"
-                final jobNamePrefix = "$basePath/$jobName/$safeBranchName/"
+            String safeBranchName = branch.name.replaceAll('/', '-')
+            folder "$basePath/$jobName/$safeBranchName"
+            println "Creating Jobs $basePath/$safeBranchName/build for ${gitUrl}"
+            final jobNamePrefix = "$basePath/$jobName/$safeBranchName/"
 
-                createJavaJobs(jobNamePrefix, branch, safeBranchName, gitUrl, gitLanguage, basePath, jobName)
+            switch (gitLanguage) {
+                case 'Java':
+                    mavenCiJobBuilder(jobNamePrefix, branch, safeBranchName, gitUrl, gitLanguage, basePath, jobName)
+                    break
+                case 'Groovy':
+                    new GradleCiJobBuilder(
+                            name: jobNamePrefix + "gradle",
+                            description: project.description,
+                            ownerAndProject: $githubName,
+                            tasks: 'clean test',
+                            gitBranch: safeBranchName
+                    ).build(this)
+                    break
+                case 'JavaScript':
+                    job(jobNamePrefix + "build") {
+                        scm {
+                            git {
+                                remote {
+                                    url(gitUrl)
+                                }
+                                branch(safeBranchName)
+                                createTag(false)
+                                clean()
+                            }
+                        }
+                        wrappers {
+                            colorizeOutput()
+                            preBuildCleanup()
+                        }
+                        triggers {
+                            scm 'H/5 * * * *'
+                            githubPush()
+                        }
+                        steps {
+                            shell 'npm update && npm build'
+                        }
+                    }
+                    job(jobNamePrefix + "verify") {
+                        scm {
+                            cloneWorkspace(jobNamePrefix + "build")
+                        }
+                        wrappers {
+                            colorizeOutput()
+                            preBuildCleanup()
+                        }
+                        triggers {
+                            scm 'H/5 * * * *'
+                            githubPush()
+                        }
+                        steps {
+                            shell 'npm run-script ci-test'
+                        }
+                    }
+                    break
             }
         }
     }
 }
 
-private void createJavaJobs(GString jobNamePrefix, gitbranch, String safeBranchName, gitUrl, gitLanguage, String basePath, jobName) {
+private void mavenCiJobBuilder(GString jobNamePrefix, String safeBranchName, gitUrl, gitLanguage, String basePath, jobName) {
 
     job(jobNamePrefix + "build") {
         scm {
@@ -86,9 +137,10 @@ private void createJavaJobs(GString jobNamePrefix, gitbranch, String safeBranchN
             }
         }
     }
+
     job(jobNamePrefix + "verify") {
         scm {
-            cloneWorkspace("$basePath/$jobName/$safeBranchName/build")
+            cloneWorkspace(jobNamePrefix + "build")
         }
         wrappers {
             colorizeOutput()
@@ -108,7 +160,7 @@ private void createJavaJobs(GString jobNamePrefix, gitbranch, String safeBranchN
             archiveJunit('**/target/surefire-reports/*.xml')
             publishCloneWorkspace('**', '', 'Any', 'TAR', true, null)
             downstreamParameterized {
-                trigger("$basePath/$jobName/$safeBranchName/analysis") {
+                trigger(jobNamePrefix + "analysis") {
 
                 }
             }
@@ -117,7 +169,7 @@ private void createJavaJobs(GString jobNamePrefix, gitbranch, String safeBranchN
 
     job(jobNamePrefix + "analysis") {
         scm {
-            cloneWorkspace("$basePath/$jobName/$safeBranchName/verify")
+            cloneWorkspace(jobNamePrefix + "verify")
         }
         wrappers {
             colorizeOutput()
