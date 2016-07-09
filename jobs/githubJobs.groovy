@@ -1,4 +1,3 @@
-import com.dslexample.GradleCiJobBuilder
 import groovy.json.JsonSlurper
 
 String basePath = 'github'
@@ -40,15 +39,6 @@ projects.each { project ->
             switch (gitLanguage) {
                 case 'Java':
                     mavenCiJobBuilder(jobNamePrefix, branch, safeBranchName, gitUrl, gitLanguage, basePath, jobName)
-                    break
-                case 'Groovy':
-                    new GradleCiJobBuilder(
-                            name: jobNamePrefix + "gradle",
-                            description: project.description,
-                            ownerAndProject: $githubName,
-                            tasks: 'clean test',
-                            gitBranch: safeBranchName
-                    ).build(this)
                     break
                 case 'JavaScript':
                     job(jobNamePrefix + "build") {
