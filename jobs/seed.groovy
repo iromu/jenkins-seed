@@ -10,6 +10,7 @@ job('seed') {
     }
     triggers {
         scm 'H/5 * * * *'
+        githubPush()
     }
     steps {
         dsl {
