@@ -7,7 +7,6 @@ folder(basePath) {
 }
 
 println "Creating Jobs for http://github.com/iromu/"
-def OAUTHTOKEN = ""
 def githubApi = new URL("https://api.github.com/users/iromu/repos?q=fork:false+language:java+language:javascript")
 def projects = new JsonSlurper().parse(githubApi.newReader())
 
