@@ -26,7 +26,7 @@ projects.each { project ->
 
         folder "$basePath/$jobName"
 
-        URL branchUrl = "https://api.github.com/repos/$githubName/branches?access_token=$OAUTHTOKEN".toURL()
+        URL branchUrl = "https://api.github.com/repos/$githubName/branches".toURL()
         List branches = new JsonSlurper().parse(branchUrl.newReader())
 
         branches.each { branch ->
