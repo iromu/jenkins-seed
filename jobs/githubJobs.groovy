@@ -3,12 +3,12 @@ import groovy.json.JsonSlurper
 String basePath = 'github'
 
 folder(basePath) {
-    description 'This example shows how to create a set of jobs for each github branch, each in its own folder.'
+    description 'Jobs for http://github.com/iromu/ for each github branch, each in its own folder.'
 }
 
-println "Creating Jobs for https://api.github.com/users/iromu/repos"
+println "Creating Jobs for http://github.com/iromu/"
 def OAUTHTOKEN = ""
-def githubApi = new URL("https://api.github.com/users/iromu/repos?access_token=$OAUTHTOKEN")
+def githubApi = new URL("https://api.github.com/users/iromu/repos?q=fork:false+language:java+language:javascript")
 def projects = new JsonSlurper().parse(githubApi.newReader())
 
 projects.each { project ->
